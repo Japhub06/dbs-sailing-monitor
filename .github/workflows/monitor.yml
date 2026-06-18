@@ -1,0 +1,71 @@
+name: DBS Sailing July Registration Monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every ~15 min (GitHub may delay a few min under load)
+  workflow_dispatch: {}        # lets you run it manually to test
+
+permissions:
+  contents: write              # needed to remember the last-seen status
+
+concurrency:
+  group: dbs-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests
+
+      - id: check
+        run: python check.py
+
+      - name: Send email
+        if: steps.check.outputs.alert == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: DBS Sailing Monitor <${{ secrets.MAIL_USERNAME }}>
+          to: ${{ secrets.MAIL_TO }}
+          subject: "DBS Sailing - July registration is OPEN"
+          body: |
+            July registration just appeared on the DBS Sailing page.
+
+            Button: ${{ steps.check.outputs.label }}
+            Link:   ${{ steps.check.outputs.link }}
+
+            Go book your 16-20 July slot now:
+            https://www.dbs.com/sailing/index.html
+
+      - name: Send phone push (ntfy)
+        if: steps.check.outputs.alert == 'true'
+        run: |
+          curl -s \
+            -H "Title: DBS Sailing - July is OPEN" \
+            -H "Priority: urgent" \
+            -H "Tags: sailboat" \
+            -d "July registration is live. Book 16-20 now: ${{ steps.check.outputs.link }}" \
+            "https://ntfy.sh/${{ secrets.NTFY_TOPIC }}"
+
+      - name: Save status
+        run: |
+          if [[ -n "$(git status --porcelain last_status.txt)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add last_status.txt
+            git commit -m "Update last-seen registration status"
+            git push
+          else
+            echo "No status change to commit."
+          fi
