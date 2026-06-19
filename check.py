@@ -90,7 +90,7 @@ def main():
 
     changed = (month != prev)
     # Alert the moment the button shows any month other than June.
-    if True:
+    if changed and month.lower() != "june":
         write_output("alert", "true")
         write_output("label", label)
         write_output("link", href)
