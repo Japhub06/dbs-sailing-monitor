@@ -27,27 +27,6 @@ jobs:
       - id: check
         run: python check.py
 
-      - name: Send email
-        if: steps.check.outputs.alert == 'true'
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          from: DBS Sailing Monitor <${{ secrets.MAIL_USERNAME }}>
-          to: ${{ secrets.MAIL_TO }}
-          subject: "DBS Sailing - July registration is OPEN"
-          body: |
-            July registration just appeared on the DBS Sailing page.
-
-            Button: ${{ steps.check.outputs.label }}
-            Link:   ${{ steps.check.outputs.link }}
-
-            Go book your 16-20 July slot now:
-            https://www.dbs.com/sailing/index.html
-
       - name: Send phone push (ntfy)
         if: steps.check.outputs.alert == 'true'
         run: |
